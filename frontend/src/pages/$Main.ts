@@ -142,9 +142,8 @@ export default ({ baseRoute = '' }: Website) => component((
     )
   )
 
-  // const MINT_START = Date.UTC(2021, 11, 1, 18, 0, 0)
-  const MINT_START = Date.now() // + 3000
-  const MINT_END = Infinity
+  const MINT_START = Date.UTC(2021, 11, 5, 21, 0, 0)
+  // const MINT_START = Date.now() // + 3000
 
   const secondsCountdown = map(Date.now, periodic(1000))
 
