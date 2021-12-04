@@ -241,7 +241,7 @@ export default ({ baseRoute = '' }: Website) => component((
               `The first goal of this collection is to reward GMX holders. That's why everyone with  Multiplier Point
 (Snapshot taken on 19 Nov 2021) will be able to mint 1 GBC for free (minting December 5 - 10PM CET)
 
-The second distribution will be a public sale which will take place December 10~ - 10PM CET.
+The second distribution will be a public sale which will take place December 7 - 10PM CET.
 You will be able to mint GBC for 0,03 ETH each.
 
 After the public sale, a part of ETH will be used to create a treasury that will benefit the GMX platform.
