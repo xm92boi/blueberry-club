@@ -1,5 +1,5 @@
 import { log, BigInt } from '@graphprotocol/graph-ts'
-import { ERC721, Transfer as TransferEvent } from '../generated/bluberry-club/ERC721'
+import { ERC721, Transfer as TransferEvent } from '../generated/blueberry-club/ERC721'
 import { Token, Owner, Contract, Transfer } from '../generated/schema'
 
 export function handleTransfer(event: TransferEvent): void {

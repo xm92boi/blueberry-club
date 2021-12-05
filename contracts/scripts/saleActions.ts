@@ -23,7 +23,7 @@ const main = async () => {
   // console.log(`✅ set Signer`)
 
   // .2 pre-mint 30 send to team, 170 treasury nfts
-  // await (await contract.adminMint(25, '0xaa93840C66058F61814192742Dbc4f3f8346c16b')).wait()
+  await (await contract.adminMint(20, '0xaa93840C66058F61814192742Dbc4f3f8346c16b')).wait()
   // await (await contract.adminMint(145, '0xDe2DBb7f1C893Cc5E2f51CbFd2A73C8a016183a0')).wait()
   // console.log(`✅ admin mint`)
 
