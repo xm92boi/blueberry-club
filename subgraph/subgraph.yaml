@@ -1,6 +1,6 @@
 specVersion: 0.0.2
 description: Blueberry club Subgraph
-repository: https://github.com/nissoh/blueberry-club
+repository: https://github.com/nissoh/bluberry-club
 schema:
   file: ./schema.graphql
 dataSources:
