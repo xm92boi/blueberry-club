@@ -26,7 +26,7 @@ export function handleTransfer(event: TransferEvent): void {
   } else {
     const prevBalance = previousOwner.balance
     if (prevBalance !== null && prevBalance > BigInt.fromI32(0)) {
-      previousOwner.balance = prevBalance - BigInt.fromI32(1)
+      previousOwner.balance = prevBalance.minus(BigInt.fromI32(1))
     }
   }
 
@@ -35,7 +35,7 @@ export function handleTransfer(event: TransferEvent): void {
     newOwner.balance = BigInt.fromI32(1)
   } else {
     const prevBalance = newOwner.balance
-    newOwner.balance = prevBalance + BigInt.fromI32(1)
+    newOwner.balance = prevBalance.plus(BigInt.fromI32(1))
   }
 
   if (token == null) {
