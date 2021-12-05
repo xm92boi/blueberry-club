@@ -83,7 +83,7 @@ ${schemaFragments}
 
 query ($account: String) {
   owner(id: $account) {
-    ownedTokens {
+    ownedTokens(first: 1000) {
       transfers {
         transactionHash
         id

@@ -3,7 +3,7 @@ import { CHAIN } from "@gambitdao/wallet-link"
 
 // testnet
 export const USE_CHAIN = CHAIN.ETH_ROPSTEN
-export const DEPLOYED_CONTRACT = '0x9250936d907d7b636ca4d344ad5e40381143a90a'
+export const DEPLOYED_CONTRACT = '0xAA8Bd244a37a82D494343603719B48327a1B0dA1'
 
 // export const USE_CHAIN = CHAIN.ARBITRUM
 // export const DEPLOYED_CONTRACT = '0x17f4BAa9D35Ee54fFbCb2608e20786473c7aa49f'
