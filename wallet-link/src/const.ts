@@ -10,6 +10,8 @@ export enum CHAIN {
   BSC = 56,
   BSC_TESTNET = 97,
 
+  AVALANCHE = 43114,
+
   ARBITRUM = 42161,
   ARBITRUM_RINKBY = 421611,
 }
@@ -30,9 +32,6 @@ const BSC_RPC_PROVIDERS = [
   "https://bsc-dataseed4.binance.org"
 ]
 
-const ARBITRUM_RPC_PROVIDERS = [
-  "https://arb1.arbitrum.io/rpc"
-]
 
 export const EXPLORER_URL = {
   [CHAIN.ETH]: "https://etherscan.io/",
@@ -46,6 +45,7 @@ export const EXPLORER_URL = {
 
   [CHAIN.ARBITRUM]: "https://arbiscan.io/",
   [CHAIN.ARBITRUM_RINKBY]: "https://testnet.arbiscan.io/",
+  [CHAIN.AVALANCHE]: "https://snowtrace.io/",
 }
 
 interface AddEthereumChainParameter {
@@ -72,7 +72,7 @@ export const NETWORK_METADATA: {[k: string]: AddEthereumChainParameter} = {
       decimals: 18
     },
     blockExplorerUrls: [EXPLORER_URL[CHAIN.ETH]],
-    rpcUrls: ["https://api.infura.io/v1/jsonrpc/mainnet"],
+    rpcUrls: ["https://mainnet.infura.io/v3/78577f8136324f42b21cdf478a8ba820"],
   },
   [CHAIN.BSC]: {
     chainId: '0x' + CHAIN.BSC.toString(16),
@@ -115,7 +115,18 @@ export const NETWORK_METADATA: {[k: string]: AddEthereumChainParameter} = {
       symbol: 'ETH',
       decimals: 18
     },
+    rpcUrls: ["https://arb1.arbitrum.io/rpc"],
     blockExplorerUrls: [EXPLORER_URL[CHAIN.ARBITRUM]],
-    rpcUrls: ARBITRUM_RPC_PROVIDERS,
+  },
+  [CHAIN.AVALANCHE]: {
+    chainId: '0x' + CHAIN.AVALANCHE.toString(16),
+    chainName: 'Avalanche',
+    nativeCurrency: {
+      name: 'AVAX',
+      symbol: 'AVAX',
+      decimals: 18
+    },
+    rpcUrls: [ "https://api.avax.network/ext/bc/C/rpc"],
+    blockExplorerUrls: [EXPLORER_URL[CHAIN.AVALANCHE]],
   },
 }

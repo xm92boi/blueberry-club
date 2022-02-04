@@ -1,7 +1,7 @@
 import { isStream, O, Op } from "@aelea/core"
 import { $text, component, INode, style, styleBehavior } from "@aelea/dom"
 import { $column, $icon, $row, $seperator, layoutSheet } from "@aelea/ui-components"
-import { pallete } from "@aelea/ui-components-theme"
+import { colorAlpha, pallete } from "@aelea/ui-components-theme"
 import { filter, map, multicast, now, periodic } from "@most/core"
 import { Stream } from "@most/types"
 import { ARBITRUM_TRADEABLE_ADDRESS, calculatePositionDelta, formatReadableUSD, getLiquidationPriceFromDelta, IAggregatedAccountSummary, IAggregatedOpenPositionSummary, IAggregatedSettledTradeSummary, IAggregatedTradeSummary, liquidationWeight, parseFixed } from "@gambitdao/gmx-middleware"
@@ -70,7 +70,7 @@ export const tableSizeColumnCellBody: TableColumn<IAggregatedAccountSummary> = {
   columnOp: O(layoutSheet.spacingTiny, style({ flex: 1.3, textAlign: 'left', minWidth: '80px', placeContent: 'flex-start' })),
   $body: map((pos: IAggregatedTradeSummary) => {
 
-    return $row(style({ alignItems: 'center', fontSize: '.65em' }), layoutSheet.spacingTiny)(
+    return $row(style({ alignItems: 'center', fontSize: '.75em' }), layoutSheet.spacingTiny)(
       $text(formatReadableUSD(pos.size))
     )
   })
@@ -102,7 +102,7 @@ export const $Risk = (pos: IAggregatedTradeSummary, containerOp: Op<INode, INode
     $column(layoutSheet.spacingTiny, style({ textAlign: 'center' }), containerOp)(
       $text(formatReadableUSD(pos.size)),
       $seperator,
-      style({ textAlign: 'center', fontSize: '.65em' }, $leverage(pos)),
+      style({ textAlign: 'center', fontSize: '.75em' }, $leverage(pos)),
     )
   ]
 })
@@ -120,7 +120,7 @@ export const $RiskLiquidator = (pos: IAggregatedOpenPositionSummary, markPrice: 
     $column(layoutSheet.spacingTiny, style({ minWidth: '100px', alignItems: 'center' }))(
       $text(formatReadableUSD(pos.size)),
       $liquidationSeparator(liqPercentage),
-      $row(style({ fontSize: '.65em', gap: '2px', alignItems: 'center' }))(
+      $row(style({ fontSize: '.75em', gap: '2px', alignItems: 'center' }))(
         $leverage(pos),
 
         $icon({
@@ -181,9 +181,13 @@ export const $Entry = (pos: IAggregatedOpenPositionSummary) =>
           })
         ),
       ),  
-      $text(style({ fontSize: '.65em', textAlign: 'center', color: pallete.primary }))(formatReadableUSD(pos.averagePrice))
+      $text(style({ fontSize: '.75em', textAlign: 'center', color: pallete.primary }))(formatReadableUSD(pos.averagePrice))
     )
   )
 
+export const $metricEntry = (label: string, value: string) => $row(style({ fontSize: '.75em', alignItems: 'center' }))(
+  $text(style({ color: pallete.foreground, flex: 1 }))(label),
+  $text(style({ fontWeight: 'bold' }))(value),
+)
 
-
+export const $seperator2 = style({ backgroundColor: colorAlpha(pallete.foreground, .15) }, $seperator)

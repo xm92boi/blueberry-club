@@ -8,10 +8,11 @@ import { Stream } from "@most/types"
 import { getGatewayUrl, getIdentityFromENS, IClaim, IClaimSource, IEnsClaim, intervalInMsMap } from "@gambitdao/gmx-middleware"
 import * as wallet from "@gambitdao/wallet-link"
 import { getAccountExplorerUrl, IWalletLink } from "@gambitdao/wallet-link"
-import { $jazzicon } from "../common/avatar"
+import { $jazzicon } from "../common/$avatar"
 import { $anchor } from "../elements/$common"
 import { $ethScan, $twitter } from "../elements/$icons"
 import { $Link } from "./$Link"
+import { isAddress } from "@ethersproject/address"
 
 
 export interface IAccountPreview {
@@ -60,12 +61,21 @@ export const $AccountPhoto = (address: string, claim?: IClaim, size = '42px') =>
 }
 
 export const $AccountLabel = (address: string, claim?: IClaim, adressOp: Op<INode, INode> = O()) => {
+  const isAddressValid = isAddress(address)
+
+  if (!isAddressValid) {
+    return $column(
+      $text(style({ fontSize: '.75em' }))('0x----'),
+      $text(adressOp, style({ fontSize: '1em' }))('----')
+    )
+  }
+
   if (claim) {
     return $text(style({ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }), adressOp)(claim.name)
   }
 
   return $column(
-    $text(style({ fontSize: '.65em' }))(address.slice(0, 6)),
+    $text(style({ fontSize: '.75em' }))(address.slice(0, 6)),
     $text(adressOp, style({ fontSize: '1em' }))(address.slice(address.length -4, address.length))
   )
 }

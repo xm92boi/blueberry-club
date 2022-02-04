@@ -2,41 +2,42 @@ import { Behavior, combineArray, O, Op } from "@aelea/core"
 import { $element, $Node, $text, attr, component, INode, style } from "@aelea/dom"
 import { $column, $icon, $Popover, $row, layoutSheet, state } from "@aelea/ui-components"
 import { pallete } from "@aelea/ui-components-theme"
-import { awaitPromises, constant, empty, fromPromise, map, multicast, skipRepeats, snapshot, switchLatest, tap } from "@most/core"
+import { awaitPromises, constant, empty, fromPromise, map, multicast, skipRepeats, snapshot, switchLatest } from "@most/core"
 import { IEthereumProvider } from "eip1193-provider"
 import { IWalletLink, attemptToSwitchNetwork } from "@gambitdao/wallet-link"
 import { $walletConnectLogo } from "../common/$icons"
-import * as wallet from "../common/wallets"
-import { $ButtonPrimary } from "./form/$Button"
+import * as wallet from "../logic/provider"
+import { $ButtonPrimary, $ButtonSecondary } from "./form/$Button"
 import { $caretDown } from "../elements/$icons"
 import { USE_CHAIN } from "@gambitdao/gbc-middleware"
+import { WALLET } from "../logic/provider"
 
 
 
 export interface IIntermediateDisplay {
   $display: $Node
   walletLink: IWalletLink
-  walletStore: state.BrowserStore<"metamask" | "walletConnect" | null, "walletStore">
+  walletStore: state.BrowserStore<WALLET, "walletStore">
 
   containerOp?: Op<INode, INode>
 }
 
 export const $IntermediateConnect = (config: IIntermediateDisplay) => component((
   [connectPopover, connectPopoverTether]: Behavior<any, any>,
-  [switchNetwork, switchNetworkTether]: Behavior<PointerEvent, any>,
+  [switchNetwork, switchNetworkTether]: Behavior<PointerEvent, Promise<any>>,
   [walletChange, walletChangeTether]: Behavior<PointerEvent, IEthereumProvider | null>,
 ) => {
 
-  const noAccount = skipRepeats(map(x => x === null || x === undefined, config.walletLink.account))
+  const noAccount = skipRepeats(config.walletLink.account)
 
   return [
     $row(config.containerOp || O())(
-      switchLatest(combineArray((metamask, walletProvider, noAccount) => {
+      switchLatest(combineArray((metamask, walletProvider, account) => {
 
         // no wallet connected, show connection flow
-        if (noAccount || walletProvider === null) {
-          const $walletConnectBtn = $ButtonPrimary({
-            $content: $row(layoutSheet.spacing)(
+        if (!account || walletProvider === null) {
+          const $walletConnectBtn = $ButtonSecondary({
+            $content: $row(layoutSheet.spacing, style({ alignItems: 'center' }))(
               $row(style({ margin: '1px', backgroundColor: '#3B99FC', padding: '2px', borderRadius: '6px' }))(
                 $icon({
                   viewBox: '0 0 32 32',
@@ -54,14 +55,14 @@ export const $IntermediateConnect = (config: IIntermediateDisplay) => component(
                 return wallet.walletConnect
               }),
               awaitPromises,
-              src => config.walletStore.store(src, constant('walletConnect')),
+              src => config.walletStore.store(src, constant(WALLET.walletConnect)),
             )
           })
 
           const $connectButtonOptions = metamask
             ? $column(layoutSheet.spacing)(
-              $ButtonPrimary({
-                $content: $row(layoutSheet.spacing)(
+              $ButtonSecondary({
+                $content: $row(layoutSheet.spacing, style({ alignItems: 'center' }))(
                   $element('img')(attr({ src: '/assets/metamask-fox.svg' }), style({ width: '24px' }))(),
                   $text('Connect Metamask')
                 ), buttonOp: style({})
@@ -79,7 +80,7 @@ export const $IntermediateConnect = (config: IIntermediateDisplay) => component(
                     throw new Error('Could not find metmask')
                   }),
                   awaitPromises,
-                  src => config.walletStore.store(src, constant('metamask')),
+                  src => config.walletStore.store(src, constant(WALLET.metamask)),
                 ),
               }),
               $walletConnectBtn
@@ -103,14 +104,17 @@ export const $IntermediateConnect = (config: IIntermediateDisplay) => component(
 
         return $column(
           switchLatest(map((chain) => {
-
             if (chain !== USE_CHAIN) {
               return $ButtonPrimary({
                 $content: $text('Switch to Arbitrum Network'),
               })({
                 click: switchNetworkTether(
-                  snapshot(wallet => {
-                    return wallet ? attemptToSwitchNetwork(wallet, USE_CHAIN) : null
+                  snapshot(async wallet => {
+                    return wallet ? attemptToSwitchNetwork(wallet, USE_CHAIN).catch(error => {
+                      alert(error.message)
+                      console.error(error)
+                      return error
+                    }) : null
                   }, config.walletLink.wallet),
                 )
               })

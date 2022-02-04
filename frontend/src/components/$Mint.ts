@@ -1,136 +1,33 @@
 import { Behavior, combineArray, combineObject, replayLatest } from "@aelea/core"
-import { $element, $node, $text, attr, attrBehavior, component, INode, nodeEvent, style, styleInline, stylePseudo } from "@aelea/dom"
+import { $element, $node, $text, attr, component, INode, nodeEvent, style, styleInline, stylePseudo } from "@aelea/dom"
 import { $column, $icon, $NumberTicker, $row, $seperator, layoutSheet, state } from "@aelea/ui-components"
 import { colorAlpha, pallete } from "@aelea/ui-components-theme"
 import { ContractReceipt, ContractTransaction } from "@ethersproject/contracts"
 import { DEPLOYED_CONTRACT, MINT_MAX_SUPPLY, MINT_PRICE, USE_CHAIN, WHITELIST } from "@gambitdao/gbc-middleware"
-import { ETH_ADDRESS_REGEXP, getGatewayUrl, groupByMapMany, shortenTxAddress } from "@gambitdao/gmx-middleware"
-import { getTxExplorerUrl, IWalletLink } from "@gambitdao/wallet-link"
-import { awaitPromises, chain, combineArray as combineArrayMost, constant, continueWith, empty, fromPromise, join, map, merge, mergeArray, multicast, now, periodic, scan, skipRepeats, snapshot, startWith, switchLatest, takeWhile, tap } from "@most/core"
+import { ETH_ADDRESS_REGEXP } from "@gambitdao/gmx-middleware"
+import { IWalletLink } from "@gambitdao/wallet-link"
+import { awaitPromises, chain, combineArray as combineArrayMost, continueWith, empty, fromPromise, join, map, merge, mergeArray, multicast, now, periodic, skipRepeats, snapshot, startWith, switchLatest, takeWhile, tap } from "@most/core"
 import { Stream } from "@most/types"
 import { GBC, GBC__factory } from "contracts"
 import { IEthereumProvider } from "eip1193-provider"
 import { $IntermediateTx, $spinner } from "../common/$IntermediateDisplay"
-import { $alert, $anchor, $responsiveFlex } from "../elements/$common"
-import { $caretDown, $gift } from "../elements/$icons"
+import { $alert, $anchor, $responsiveFlex, $txHashRef } from "../elements/$common"
+import { $caretDown, $gift, $tofunft } from "../elements/$icons"
 import { $IntermediateConnect } from "./$ConnectAccount"
 import { $ButtonPrimary } from "./form/$Button"
 import { $Dropdown } from "./form/$Dropdown"
-import { ClientOptions, createClient, gql, TypedDocumentNode } from "@urql/core"
-import { BaseProvider, TransactionReceipt } from "@ethersproject/providers"
-
-
-// export type ITransfer = ExtractAndParseEventType<GBC, 'Transfer'>
-
-interface IToken {
-  id: string
-  account: string
-  uri: string
-
-  transfers: ITransfer[]
-}
-
-interface ITransfer {
-  id: string
-  token: IToken
-  from: Owner
-  to: Owner
-  transactionHash: string
-}
-
-interface Owner {
-  id: string
-  ownedTokens: IToken[]
-  balance: bigint
-}
-
-const schemaFragments = `
-
-fragment tokenFields on Token {
-  id
-  account
-  uri
-}
-
-fragment ownerFields on Owner {
-  ownedTokens
-  balance
-}
-
-`
-
-type QueryAccountOwnerNfts = {
-  account: string
-}
-
-export const accountOwnedNfts: TypedDocumentNode<{owner: Owner}, QueryAccountOwnerNfts> = gql`
-${schemaFragments}
-
-query ($account: Int) {
-  owner(id: $account) {
-    ownedTokens {
-      uri
-      id
-    }
-    balance
-  }
-}
-
-`
-
-export const mintSnapshot: TypedDocumentNode<{owner: Owner}, QueryAccountOwnerNfts> = gql`
-${schemaFragments}
-
-query ($account: String) {
-  owner(id: $account) {
-    ownedTokens(first: 1000) {
-      transfers {
-        transactionHash
-        id
-        from {
-          id
-        }
-      }
-      uri
-      id
-    }
-    balance
-  }
-}
-`
-
-interface Owner {
-  id: string
-}
-
-export const prepareClient = (opts: ClientOptions) => {
-
-  const client = createClient(opts)
-
-  return async <Data, Variables extends object = {}>(document: TypedDocumentNode<Data, Variables>, params: Variables): Promise<Data> => {
-    const result = await client.query(document, params)
-      .toPromise()
-  
-    if (result.error) {
-      throw new Error(result.error.message)
-    }
-  
-    return result.data!
-  }
-}
-
-export const vaultClient = prepareClient({
-  fetch: fetch as any,
-  url: 'https://api.thegraph.com/subgraphs/name/nissoh/blueberry-club',
-})
-
+import { gbc } from "../logic/gbc"
+import { IToken } from "../types"
+import { queryOwnerTrasnferNfts } from "../logic/query"
+import { WALLET } from "../logic/provider"
+import { $berryById } from "../logic/common"
 
 
 
 
 export interface IMint {
   walletLink: IWalletLink
-  walletStore: state.BrowserStore<"metamask" | "walletConnect" | null, "walletStore">
+  walletStore: state.BrowserStore<WALLET, "walletStore">
 }
 
 interface IFormState {
@@ -169,19 +66,9 @@ export function replayState<A, K extends keyof A = keyof A>(state: StreamInput<A
   return combinedWithInitial
 }
 
-const queryOwnedNfts = async (account: string) => {
-  return (await vaultClient(accountOwnedNfts, { account })).owner
-}
 
-const queryOwnerTrasnferNfts = async (contract: GBC, provider: BaseProvider, account: string) => {
-  const owner = (await vaultClient(mintSnapshot, { account: account.toLowerCase() })).owner
 
-  if (owner === null) {
-    return []
-  }
 
-  return Object.entries(groupByMapMany(owner.ownedTokens, token => token.transfers[0].transactionHash))
-}
 
 export const $Mint = (config: IMint) => component((
   [selectMintAmount, selectMintAmountTether]: Behavior<number, number>,
@@ -197,7 +84,7 @@ export const $Mint = (config: IMint) => component((
 
 
   const contract = replayLatest(multicast(skipRepeats(awaitPromises(map(async w3p => {
-    if (w3p === null || (await w3p.getNetwork()).chainId !== USE_CHAIN) {
+    if (w3p === null || w3p?.network?.chainId !== USE_CHAIN) {
       return null
     }
 
@@ -220,18 +107,10 @@ export const $Mint = (config: IMint) => component((
   }, contract))
 
 
-  const totalMinted = awaitPromises(map(async contract => {
-    if (contract) {
-      return (await contract.totalSupply()).toNumber()
-    }
-
-    return 0
-  }, contract))
-
-
-  const totalMintedChangeInterval = switchLatest(constant(totalMinted, periodic(1000)))
+  const totalMintedChangeInterval = multicast(awaitPromises(map(async () => (await gbc.totalSupply()).toNumber(), periodic(5000))))
 
   const totalMintedChange = continueWith(() => now(MINT_MAX_SUPPLY), takeWhile(res => res < MINT_MAX_SUPPLY, totalMintedChangeInterval))
+
   const hasMintEnded = skipRepeats(map(amount => {
     return amount === MINT_MAX_SUPPLY
   }, totalMintedChange))
@@ -252,7 +131,7 @@ export const $Mint = (config: IMint) => component((
     canClaim: false, mintAmount: null, hasWhitelistSaleStarted: false, hasPublicSaleStarted: false, account: null
   } as IFormState)
   
-  const buttonState = multicast(map(({ hasWhitelistSaleStarted, hasPublicSaleStarted, formState: { canClaim, account, mintAmount } }) => {
+  const buttonState = multicast(map(({ hasWhitelistSaleStarted, hasPublicSaleStarted, formState: { canClaim, mintAmount } }) => {
     if (!hasPublicSaleStarted && hasWhitelistSaleStarted) {
       return hasWhitelistSaleStarted && !canClaim
     }
@@ -263,31 +142,33 @@ export const $Mint = (config: IMint) => component((
   return [
     $column(layoutSheet.spacing, style({ flex: 1 }))(
       
-      $column(layoutSheet.spacingTiny)(
+      $column(layoutSheet.spacing)(
         $responsiveFlex(layoutSheet.spacing, style({ fontSize: '1.5em' }))(
           switchLatest(map(hasEnded => {
             return hasEnded
               ? $text(style({ fontSize: '1.25em', fontWeight: 'bold' }))('Sale has ended!')
-              : $text(style({ color: pallete.indeterminate }))(`Whitelist Minting is Live!`)
+              : $text(style({ color: pallete.indeterminate }))(`Minting is Live!`)
           }, hasMintEnded)),
-          switchLatest(map(provider => {
 
-            if (provider === null) {
-              return empty()
-            }
-
-            return $row(layoutSheet.spacingTiny)(
-              $NumberTicker({
-                value$: totalMintedChange,
-                decrementColor: pallete.primary,
-                incrementColor: pallete.primary,
-              }),
-              $text(style({ color: pallete.foreground }))('/'),
-              $text(`10,000`)
-            )
-          }, contract)),
+          $row(layoutSheet.spacingTiny)(
+            $NumberTicker({
+              value$: totalMintedChange,
+              decrementColor: pallete.primary,
+              incrementColor: pallete.primary,
+            }),
+            $text(style({ color: pallete.foreground }))('/'),
+            $text(`10,000`)
+          ),
         ),
-        $text(style({ fontSize: '.75em' }))('Reveals will occur per 2k berries minted. Stay tuned and hit the refresh (:'),
+        $row(layoutSheet.spacingSmall)(
+          $icon({
+            $content: $tofunft,
+            viewBox: '0 0 32 32'
+          }),
+          $anchor(attr({ href: `https://tofunft.com/collection/blueberryclub/items?category=fixed-price` }))(
+            $text('Trade On TofuNFT')
+          ),
+        ),
       ),
 
       $node(),
@@ -390,7 +271,7 @@ export const $Mint = (config: IMint) => component((
               ),
             })({
               click: clickClaimTether(
-                snapshot(async ({ formState: { canClaim, mintAmount, hasPublicSaleStarted, hasWhitelistSaleStarted }, contract, account }, click): Promise<IMintEvent> => {
+                snapshot(async ({ formState: { canClaim, mintAmount, hasPublicSaleStarted, hasWhitelistSaleStarted }, contract, account }): Promise<IMintEvent> => {
                   if (contract === null || !account) {
                     throw new Error(`Unable to resolve contract`)
                   }
@@ -440,7 +321,7 @@ export const $Mint = (config: IMint) => component((
       $node(),
       $node(),
 
-      join(snapshot(({ contract, provider, account }, minev) => {
+      join(snapshot(({ contract, provider }, minev) => {
         if (contract === null || provider === null) {
           return empty()
         }
@@ -449,14 +330,16 @@ export const $Mint = (config: IMint) => component((
       }, combineObject({ contract, provider: config.walletLink.provider, account: config.walletLink.account }), clickClaim)),
 
       switchLatest(awaitPromises(map(async ({ contract, provider, account }) => {
-
         if (contract === null || provider === null || account === null) {
           return empty()
         }
-        const mintHistory = await queryOwnerTrasnferNfts(contract, provider, account)
+        const mintHistory = await queryOwnerTrasnferNfts(account)
 
         return mergeArray(mintHistory.map(([txHash, tokenList]) => {
-          return $mintDetails(txHash, tokenList.length, tokenList)
+          return $column(layoutSheet.spacing)(
+            style({ backgroundColor: colorAlpha(pallete.foreground, .15) }, $seperator),
+            $mintDetails(txHash, tokenList.length, tokenList)
+          )
         }))
       }, combineObject({ contract, provider: config.walletLink.provider, account: config.walletLink.account })))),
 
@@ -471,13 +354,8 @@ const $giftIcon = $icon({ $content: $gift, width: '18px', fill: pallete.backgrou
 const $container = $row(layoutSheet.spacingSmall)
 
 
-const counter = scan((seed, n: number) => seed + n, 0, constant(1, periodic(2000)))
-
-const blueberriesPreviewList = ['/assets/blueberriesNFT/Green.png', '/assets/blueberriesNFT/Orange.png', '/assets/blueberriesNFT/Purple.png', '/assets/blueberriesNFT/Yellow.png']
-
 const size = '44px'
-const $img = $element('img')(style({ width: size, height: size, borderRadius: '5px', border: `1px solid ${pallete.middleground}` }))
-const $nftBox = $img(attrBehavior(map(n => ({ src: blueberriesPreviewList[(n % blueberriesPreviewList.length)] }), counter)))
+const $img = $element('img')(style({ width: size, height: size, borderRadius: '5px' }))
 
 const $freeClaimBtn = $container(
   $giftIcon,
@@ -486,7 +364,7 @@ const $freeClaimBtn = $container(
 
 
 function getWhitelistSignature(account: any) {
-  return typeof account === 'string' ? WHITELIST[account.toLocaleLowerCase()] : ''
+  return typeof account === 'string' ? WHITELIST[account] || WHITELIST[account.toLocaleLowerCase()] || WHITELIST[account.toUpperCase()] : ''
 }
 
 function $mintAction(contract: GBC, mintAction: Promise<IMintEvent>) {
@@ -495,13 +373,15 @@ function $mintAction(contract: GBC, mintAction: Promise<IMintEvent>) {
 
 
   return $column(layoutSheet.spacing)(
+    style({ backgroundColor: colorAlpha(pallete.foreground, .15) }, $seperator),
+
     $IntermediateTx({
       query: now(contractReceipt),
       $loader: $row(layoutSheet.spacingSmall, style({ alignItems: 'center' }))(
         $spinner,
         $text(startWith('Awaiting Approval', map(() => 'Minting...', fromPromise(contractAction)))),
         $node(style({ flex: 1 }))(),
-        switchLatest(map(txHash => $txHashLink(txHash), fromPromise(contractAction)))
+        switchLatest(map(txHash => $txHashRef(txHash), fromPromise(contractAction)))
       ),
       $done: map((tx) => {
         const tokenIds = tx?.logs.map(log => contract.interface.parseLog(log).args.tokenId)
@@ -514,7 +394,7 @@ function $mintAction(contract: GBC, mintAction: Promise<IMintEvent>) {
               id: t,
               uri,
               transfers: []
-            } as IToken
+            } as any as IToken
           }))
           return chain(tokL => $mintDetails(tx.transactionHash, tokenIds.length, tokL), fromPromise(tokenList))
         }
@@ -522,36 +402,29 @@ function $mintAction(contract: GBC, mintAction: Promise<IMintEvent>) {
         return $alert($text('Unable to reach subgraph'))
       }),
     })({}),
-    style({ backgroundColor: colorAlpha(pallete.foreground, .15) }, $seperator),
   )
 }
+
+export const $berryTileId = (id: number, ) => $column(style({ position: 'relative' }))(
+  $berryById(id),
+  $text(style({ textAlign: 'left', paddingLeft: '3px', paddingTop: '1px', fontSize: '.55em', position: 'absolute', fontWeight: 'bold', color: '#000' }))(String(id))
+)
 
 function $mintDetails(txHash: string, berriesAmount: number, ids: IToken[]) {
   return $column(layoutSheet.spacing)(
     $row(style({ placeContent: 'space-between' }))(
       $text(style({ color: pallete.positive }))(`Minted ${berriesAmount} Berries`),
-      $txHashLink(txHash)
+      $txHashRef(txHash)
     ),
-    $row(layoutSheet.spacingSmall, style({ flexWrap: 'wrap' }))(...ids.map(token => {
-      const metadataUrl = getGatewayUrl(token.uri)
-      const queryMetadata = fetch(metadataUrl).then(res => res.json())
+    $row(style({ flexWrap: 'wrap' }))(...ids.map(token => {
+      const tokenId = Number(BigInt(token.id))
 
-      return $column(
-        switchLatest(map(metadata => {
-          const imgRef = getGatewayUrl(metadata.image)
-          return $anchor(attr({ href: imgRef }))($img(attr({ src: imgRef }))())
-        }, fromPromise(queryMetadata))),
-        $text(style({ textAlign: 'center', fontSize: '.75em' }))(String(BigInt(token.id)))
-      )
-    }))
+      return $berryTileId(tokenId)
+    })),
   )
 }
 
-const $txHashLink = (txHash: string) => {
-  const href = getTxExplorerUrl(USE_CHAIN, txHash)
 
-  return $anchor(attr({ href, target: '_blank' }))($text(shortenTxAddress(txHash)))
-}
 
 
 
